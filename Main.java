@@ -6,6 +6,6 @@ public class Main {
         System.out.println("The third change comes from origin!");
         System.out.println("The second change comes from origin!");
         System.out.println("The change comes from origin!");
-        System.out.println("Hello world 01!");
+        System.out.println("Hello world 0102!");
     }
 }
