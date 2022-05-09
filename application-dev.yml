@@ -1,0 +1,202 @@
+###移动到bootstrap.yml中，防止config-client启动时默认连接本地8888
+#eureka:
+#  instance:
+#    #statusPageUrlPath: /info
+#    #healthCheckUrlPath: /health
+#    #health-check-url-path: /health
+#    #status-page-url-path: /info
+#    statusPageUrl: http://localhost:8090/info
+#    healthCheckUrl: http://localhost:8090/health
+#    homePageUrl: http://localhost:8090/           #暂不处理状态检查与健康检查
+#    hostname: demo-web-localhost
+#  client:
+#    fetch-registry: true                          #检索服务--去注册中心获取其它服务地址
+#    registry-fetch-interval-seconds: 5            #从Eureka服务器端获取注册信息的间隔时间，单位：秒
+#    register-with-eureka: true                    #启动服务注册
+#    eureka-server-connect-timeout-seconds: 5      #连接 Eureka Server 的超时时间，单位：秒
+#    eureka-server-read-timeout-seconds: 8         #读取 Eureka Server 信息的超时时间，单位：秒
+#    eureka-connection-idle-timeout-seconds: 30    #Eureka 服务端连接空闲关闭时间，单位：秒
+#    service-url:
+#      #defaultZone: http://admin:wrq123456@localhost:1111/eureka/
+#      defaultZone: http://admin:wrq123456@111.229.198.250:1111/eureka/
+
+
+#feign配置
+feign:
+  hystrix:
+    enabled: true     #开启hystrix
+  httpclient:         #启用httpClient
+    enabled: true
+    connection-timeout: 1500
+  okhttp:             #启用okhttp
+    enabled: true
+  compression:        #开启数据压缩
+    request:
+      enabled: true
+    response:
+      enabled: true
+  client:
+    config:
+      default:                    #feign默认配置
+        connectTimeout: 1500
+        readTimeout: 1500
+      demo-service-localhost:     #指定服务的配置
+        connectTimeout: 1500
+        readTimeout: 1500
+#        requestInterceptors:
+#          - com.zto.titans.test.feign.service.FeignInterceptor1
+#      test-service:
+#        #loggerLevel: basic
+#        requestInterceptors:
+#          - com.zto.titans.test.feign.service.FeignInterceptor2
+
+#hystrix配置
+hystrix:
+  command:
+    default:
+      execution:
+        timeout:
+          enabled: true                   #false关闭超时异常属性,防止服务调用500
+        isolation:
+          strategy: THREAD
+          thread:
+            timeoutInMilliseconds: 4000   #线程超时1.5秒,调用Fallback方法(hystrix超时时间不能小于ribbon read+connect时间之和)
+      metrics:
+        rollingStats:
+          timeInMilliseconds: 60000
+      circuitBreaker:
+        requestVolumeThreshold: 30         #10秒内出现3个以上请求(已临近阀值),并且出错率在50%以上,开启断路器.断开服务,调用Fallback方法
+        sleepWindowInMilliseconds: 60000
+
+#网关配置(指定URL转发，自定义转发列表， 配置接口版本号，配置熔断器， 配置过滤器)
+zuul:
+  routes:
+    demo-service:
+      path: /zuul/**
+      serviceId: demo-service-localhost    #通过注册中心服务ID转发访问
+    demo-service1:
+      path: /zuul1/**
+      url: http://localhost:8092           #指定ip+port方式，访问localhost:8091/zuul/get会转发到localhost:9001/get
+    myribbon:
+      path: /myribbon/**
+      serviceId: myribbonlist              #自定义转发列表实现负载均衡
+  prefix: /v1                              #版本号配置，访问格式localhost:8091/v1/zuul/get,不加版本号无法访问
+
+myribbonlist:
+  ribbon:
+    listOfServer: http://localhost:8092    #,http://localhost:8093
+
+#ribbon全局配置()
+#DEMO-SERVICE-LOCALHOST:
+#  ribbon:
+#    ConnectTimeout: 1500
+ribbon:
+  #ReadTimeout: 1000
+  #ConnectTimeout: 1500
+  eureka:
+    enabled: true     #此处关闭，配合zuul中转发列表使用
+
+
+#spring配置-一级配置
+spring:
+  application:
+    name: demo-web-localhost
+  #session:
+    #store-type: none #springboot默认session存储在redis中，由于本项目暂时未配置redis；故设置store-type：none
+  #传统页面文件(webapp/views/)
+#  mvc:
+#    view:
+#      prefix: /WEB-INF/views/
+#      suffix: .html
+  #thymeleaf模板引擎(src/main/resources/)
+  thymeleaf:
+    prefix: classpath:/templates/
+    suffix: .html
+    mode: HTML
+#  cloud:
+#    config:
+#      name: config    #配置文件名称
+#      profile: dev    #后缀名称
+#      discovery:
+#        enabled: true
+#        service-id: demo-config   #config-server
+  #mysql数据源配置
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource     #配置当前要使用的数据源操作类型
+    driver-class-name: com.mysql.jdbc.Driver         #配置MySQL的驱动程序类
+    url: jdbc:mysql://49.235.160.172:3306/szht_beta?serverTimezone=CTT&useUnicode=true&characterEncoding=utf-8&allowMultiQueries=true&useSSL=false
+    username: root
+    password: Wrq123456
+    filters: stat,wall,log4j                         #druid监控配置
+    initialSize: 5                                   #初始化大小
+    minIdle: 5                                       #最小空闲连接数
+    maxActive: 20                                    #最大连接数
+    maxWait: 60000                                   #配置获取连接等待超时的时间(毫秒
+    timeBetweenEvictionRunsMillis: 60000             #配置间隔多久才进行一次检测，检测需要关闭的空闲连接，单位毫秒
+    minEvictableIdleTimeMillis: 300000               #配置有一个连接在连接池中的最小生存时间，单位毫秒
+    testWhileIdle: true
+    testOnBorrow: false
+    testOnReturn: false
+    druid:
+      web-stat-filter:
+        enabled: true
+        url-pattern: /*
+        exclusions: '*.js,*.gif,*.jpg,*.css,/druid/*'
+        session-stat-max-count: 10000
+      stat-view-servlet:
+        enabled: true
+        urlPattern: /druid/*
+        loginUsername: root
+        loginPassword: wrq123456
+        allow: 127.0.0.1,192.168.101.122,192.168.199.135
+        deny: 129.168.1.12
+
+  redis:
+    #host: 115.29.65.162     #redis单机配置
+    #port: 6379
+    #password: wrq123456
+    password: wrq12345678
+    database: 1
+    timeout: 6000
+    sentinel:                #redis集群配置
+      master: mymaster
+      #nodes: 47.105.126.146:26379,47.104.105.201:26379,115.29.65.162:26379
+      nodes: 49.235.160.172:26379,111.229.172.155:26379,111.229.198.250:26379
+    lettuce:
+      pool:
+        max-active: 8       #连接池最大连接数（使用负值表示没有限制）默认8
+        max-wait: 300        #连接池最大阻塞时间（使用负值表示没有限制）默认-1
+        max-idle: 8         #连接池最大空闲连接默认8
+        min-idle: 5         #连接池最小空闲连接默认0
+
+#  cloud:
+#    discovery:
+#      locator:
+#        enabled: true                       #是否与服务发现组件进行结合
+#        lower-case-service-id: true         #开启小写验证, 路由默认为大写(不管小写大写,不能使用下划线否则会抛出异常)
+#    gateway:                                #网关配置：将符合Path规则的一切请求，都代理到uri参数指定的地址
+#      routes:                               #路由配置
+#        - id: demo-service-localhost        #路由id，可以随意写；id前的-表示多个的意思
+#          uri: lb://demo-service-localhost  #代理的服务地址；lb表示从eureka中获取具体服务
+#          predicates:
+#            - Path=/**                      #路由断言，可以配置映射路径（path=/user/**表示路径中包含user的话，全部转到上面的uri地址）
+#          filters:                          #当前路由下的局部过滤器
+#            - PrefixPath=/user/**           #添加请求路径的前缀，
+
+#mybatis配置-一级配置
+mybatis:
+  type-aliases-package: com.beta.pojo
+  mapper-locations: classpath:mapper/*.xml
+  configuration:
+    cache-enabled: true           #开启MyBatis的二级缓存
+
+#日志打印配置-一级配置
+#可分包路径，分jar包选择性打印日志
+#日志级别由高到低（OFF、FATAL、ERROR、WARN、INFO、DEBUG、TRACE、 ALL）
+logging:
+  level:
+    #com.beta.mapper: trace  #trace级别不打印sql语句
+    com.beta.mapper: debug
+    org.apache.kafka: off
+    org.springframework.data.redis: debug
+    com.beta.feign.FeignClients: DEBUG
